@@ -1,0 +1,12 @@
+mmengine>=0.7.3
+mmdet>=3.0.0
+mmpose>=1.0.0
+mmcv>=2.0.0
+opencv-python>=4.5.0
+numpy>=1.17.0
+pyrealsense2>=2.0.0
+pyyaml>=5.1
+json-tricks
+torch>=1.6.0
+torchvision>=0.7.0
+openmim>=0.3.7

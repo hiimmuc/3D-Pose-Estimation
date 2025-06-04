@@ -1,0 +1,53 @@
+/home/phgnam/miniconda3/envs/openmmlab/lib/python3.8/site-packages/mmengine/optim/optimizer/zero_optimizer.py:11: DeprecationWarning: `TorchScript` support for functional optimizers is deprecated and will be removed in a future PyTorch release. Consider using the `torch.compile` optimizer instead.
+  from torch.distributed.optim import \
+[94mWorking directory set to: /home/phgnam/Workspace/VINMOTION/workspace[0m
+[92m✓[0m Loaded configuration from [1m/home/phgnam/Workspace/VINMOTION/workspace/src/config.yaml[0m
+[94m➤ Checking for model files...[0m
+  [96mDetection config:[0m    rtmdet_tiny_8xb32-300e_coco
+  [96mDetection checkpoint:[0m rtmdet_tiny_8xb32-300e_coco.pth
+  [95mPose config:[0m        rtmpose-m_8xb256-420e_coco-256x192
+  [95mPose checkpoint:[0m    rtmpose-m_8xb256-420e_coco-256x192.pth
+  [92m✓ Detection config exists: rtmdet_tiny_8xb32-300e_coco[0m
+  [92m✓ Detection checkpoint exists: rtmdet_tiny_8xb32-300e_coco.pth[0m
+  [92m✓ Pose config exists: rtmpose-m_8xb256-420e_coco-256x192[0m
+  [92m✓ Pose checkpoint exists: rtmpose-m_8xb256-420e_coco-256x192.pth[0m
+
+[94m➤ Initializing models...[0m
+Loads checkpoint by local backend from path: /home/phgnam/Workspace/VINMOTION/workspace/checkpoints/detection/rtmdet_tiny_8xb32-300e_coco.pth
+The model and loaded state dict do not match exactly
+
+unexpected key in source state_dict: data_preprocessor.mean, data_preprocessor.std
+
+Loads checkpoint by local backend from path: /home/phgnam/Workspace/VINMOTION/workspace/checkpoints/pose-estimation/rtmpose-m_8xb256-420e_coco-256x192.pth
+
+[1m╔════════════════════════════════════════════════════════════════════════════════╗[0m
+[1m╠══════════════════════════════  MODEL INFORMATION  ══════════════════════════════╣[0m
+[1m╠════════════════════════════════════════════════════════════════════════════════╣[0m
+[1m║[0m [96mDetection Model:[0m    [94mRTMDet[0m
+[1m║[0m [96mDevice:[0m             [92mcuda:0[0m
+
+[1m║[0m [95mPose Model:[0m        [94mTopdownPoseEstimator[0m
+[1m║[0m [95mDevice:[0m             [92mcuda:0[0m
+[1m║[0m [95mKeypoints:[0m          0 points
+[1m║[0m [95mSkeleton Links:[0m     19 connections
+[1m╚════════════════════════════════════════════════════════════════════════════════╝[0m
+
+[94m➤ Processing input: examples/sample_image.jpg[0m
+Traceback (most recent call last):
+  File "src/scripts/main.py", line 298, in <module>
+    main()
+  File "src/scripts/main.py", line 290, in main
+    process_image(args, args.input, detector, pose_estimator, visualizer)
+  File "src/scripts/main.py", line 71, in process_image
+    img_vis, pred_instances = process_one_image(
+  File "/home/phgnam/Workspace/VINMOTION/workspace/src/scripts/image_processor.py", line 48, in process_one_image
+    det_result = inference_detector(detector, img)
+  File "/home/phgnam/Workspace/VINMOTION/workspace/mmdetection/mmdet/apis/inference.py", line 159, in inference_detector
+    test_pipeline = Compose(test_pipeline)
+  File "/home/phgnam/miniconda3/envs/openmmlab/lib/python3.8/site-packages/mmcv/transforms/wrappers.py", line 66, in __init__
+    transform = TRANSFORMS.build(transform)
+  File "/home/phgnam/miniconda3/envs/openmmlab/lib/python3.8/site-packages/mmengine/registry/registry.py", line 570, in build
+    return self.build_func(cfg, *args, **kwargs, registry=self)
+  File "/home/phgnam/miniconda3/envs/openmmlab/lib/python3.8/site-packages/mmengine/registry/build_functions.py", line 100, in build_from_cfg
+    raise KeyError(
+KeyError: 'PackDetInputs is not in the mmpose::transform registry. Please check whether the value of `PackDetInputs` is correct or it was registered as expected. More details can be found at https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html#import-the-custom-module'

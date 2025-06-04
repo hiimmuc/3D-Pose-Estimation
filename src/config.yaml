@@ -1,0 +1,52 @@
+# Pose Estimation Configuration
+
+# Detection model settings
+detection:
+    config: rtmdet_tiny_8xb32-300e_coco
+    checkpoint: rtmdet_tiny_8xb32-300e_coco.pth
+    device: cuda:0
+    cat_id: 0
+    bbox_thr: 0.5
+    nms_thr: 0.3
+
+# Pose estimation model settings
+pose:
+    config: rtmpose-m_8xb256-420e_coco-256x192
+    checkpoint: rtmpose-m_8xb256-420e_coco-256x192.pth
+    device: cuda:0 # Device for inference: 'cpu' or 'cuda:0'
+    kpt_thr: 0.3 # Keypoint threshold for visualization
+    radius: 4 # Keypoint radius for visualization
+    thickness: 2 # Link thickness for visualization
+
+# Visualization settings
+visualization:
+    # --- Visualization Options ---
+    draw_bbox: true # Whether to draw person bounding boxes
+    draw_heatmap: false # Whether to visualize keypoint heatmaps
+    show_kpt_idx: false # Whether to display keypoint index numbers next to each keypoint
+
+    # --- Style Options ---
+    # Skeleton style: 'mmpose' (default) or 'openpose'
+    # - mmpose: Simple lines connecting keypoints
+    # - openpose: More visually appealing skeleton with thicker lines and joint visualizations
+    skeleton_style: mmpose
+
+    # --- Appearance Options ---
+    alpha: 0.8 # Transparency level for bounding boxes and overlays (0-1)
+    text_scale: 0.5 # Size of the text displaying 3D coordinates
+    text_thickness: 1 # Thickness of the coordinate text
+    font: 0 # Font type for text (0: FONT_HERSHEY_SIMPLEX, 1: FONT_HERSHEY_PLAIN, etc.)
+
+# Input/Output settings
+io:
+    show: true # Show visualization
+    output_root: output # Output directory for saving results
+    save_predictions: false # Save prediction results
+    show_interval: 0.001 # Sleep seconds per frame (for video display)
+
+# Camera settings
+camera:
+    use_realsense: false # Whether to use RealSense camera
+    rgb_resolution: [640, 480] # RGB resolution [width, height]
+    depth_resolution: [640, 480] # Depth resolution [width, height]
+    fps: 30 # FPS for RealSense camera
