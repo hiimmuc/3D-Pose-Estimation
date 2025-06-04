@@ -194,5 +194,5 @@ cython_debug/
 .cursorindexingignore
 
 checkpoints/
-outputs/
+output/
 

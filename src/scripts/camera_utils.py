@@ -14,17 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import cv2
 import mmengine
 import numpy as np
-
-# ANSI color codes
-RED = '\033[91m'
-GREEN = '\033[92m'
-YELLOW = '\033[93m'
-BLUE = '\033[94m'
-MAGENTA = '\033[95m'
-CYAN = '\033[96m'
-WHITE = '\033[97m'
-BOLD = '\033[1m'
-END = '\033[0m'
+from decoration import *
 
 
 def init_realsense():
@@ -78,7 +68,7 @@ def init_realsense():
 
 def process_camera(args, detector, pose_estimator, visualizer, 
                    is_realsense=False, realsense_objects=None,
-                   process_frame_func=None):
+                   process_frame_func=None, camera_matrix=None):
     """Process camera input (webcam or realsense).
     
     Args:
@@ -106,7 +96,10 @@ def process_camera(args, detector, pose_estimator, visualizer,
     # ANSI color codes for status messages
     camera_type = "RealSense" if is_realsense else "Webcam"
     
-    print(f"\n{BLUE}┌─ {MAGENTA if is_realsense else CYAN}{camera_type}{BLUE} ─{'─' * (45 - len(camera_type))}┐{END}")
+    print(f"{WHITE}{BOLD}STREAM CONSOLE{END}")
+    
+    print(f"\n{BLUE}┌─ {MAGENTA if is_realsense else CYAN}{camera_type}{BLUE} ─{'─' * (47 - len(camera_type))}┐{END}")
+    
     
     if is_realsense:
         if not has_realsense():
@@ -164,7 +157,8 @@ def process_camera(args, detector, pose_estimator, visualizer,
                 img_vis, pred_instances = process_frame_func(
                     args, color_image, detector, pose_estimator, visualizer, 
                     depth_img=depth_image, depth_scale=depth_scale, 
-                    show_interval=args.show_interval
+                    show_interval=args.show_interval,
+                    camera_matrix=camera_matrix
                 )
                 
             else:
@@ -176,7 +170,8 @@ def process_camera(args, detector, pose_estimator, visualizer,
                 # Process frame (no depth for standard webcam)
                 img_vis, pred_instances = process_frame_func(
                     args, frame, detector, pose_estimator, visualizer, 
-                    show_interval=args.show_interval
+                    show_interval=args.show_interval,
+                    camera_matrix=camera_matrix
                 )
             
             frame_idx += 1

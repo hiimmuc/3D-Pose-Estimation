@@ -35,7 +35,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from argument_parser import merge_configs, parse_arguments
 from camera_utils import has_realsense, init_realsense, process_camera
 from config_utils import ensure_models_exist, load_config, print_model_info
-from image_processor import process_one_image
+from image_processor import load_camera_intrinsics, process_one_image
 from save_utils import save_predictions, setup_output_paths
 
 # Filter out warnings
@@ -43,18 +43,11 @@ warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-# ANSI color codes for console output
-RED = '\033[91m'
-GREEN = '\033[92m'
-YELLOW = '\033[93m'
-BLUE = '\033[94m'
-MAGENTA = '\033[95m'
-CYAN = '\033[96m'
-WHITE = '\033[97m'
-BOLD = '\033[1m'
-END = '\033[0m'
+# Import decoration utilities
+from decoration import *
 
-def process_image(args, img_path, detector, pose_estimator, visualizer):
+
+def process_image(args, img_path, detector, pose_estimator, visualizer, camera_matrix=None):
     """Process a single image file.
     
     Args:
@@ -63,6 +56,7 @@ def process_image(args, img_path, detector, pose_estimator, visualizer):
         detector: Detection model
         pose_estimator: Pose estimation model
         visualizer: Visualization object
+        camera_matrix: Camera intrinsics matrix for 3D deprojection
         
     Returns:
         pred_instances: The prediction instances or None if processing failed
@@ -77,7 +71,7 @@ def process_image(args, img_path, detector, pose_estimator, visualizer):
         # Process image
         print(f"{BLUE}Processing image: {os.path.basename(img_path)}{END}")
         img_vis, pred_instances = process_one_image(
-            args, img, detector, pose_estimator, visualizer
+            args, img, detector, pose_estimator, visualizer, camera_matrix=camera_matrix
         )
         
         # Show result
@@ -116,7 +110,7 @@ def process_image(args, img_path, detector, pose_estimator, visualizer):
         return None
 
 
-def process_video(args, video_path, detector, pose_estimator, visualizer):
+def process_video(args, video_path, detector, pose_estimator, visualizer, camera_matrix=None):
     """Process video file for pose estimation.
     
     Args:
@@ -125,6 +119,7 @@ def process_video(args, video_path, detector, pose_estimator, visualizer):
         detector: Detection model
         pose_estimator: Pose estimation model
         visualizer: Visualization object
+        camera_matrix: Camera intrinsics matrix for 3D deprojection
         
     Returns:
         bool: True if processing was successful, False otherwise
@@ -181,7 +176,8 @@ def process_video(args, video_path, detector, pose_estimator, visualizer):
                 # Process frame
                 start_time = time.time()
                 frame_vis, pred_instances = process_one_image(
-                    args, frame, detector, pose_estimator, visualizer
+                    args, frame, detector, pose_estimator, visualizer,
+                    camera_matrix=camera_matrix
                 )
                 process_time = time.time() - start_time
                 processing_times.append(process_time)
@@ -334,24 +330,37 @@ def main():
         print(f"{RED}✗ Error: MMDetection not found. This script requires MMDetection for person detection.{END}")
         return
     
+    # Load camera intrinsics matrix for 3D coordinate calculation
+    camera_matrix = None
+    calib_path = os.path.join(workspace_dir, args.calibration_file)
+    if os.path.exists(calib_path):
+        camera_matrix = load_camera_intrinsics(calib_path)
+        print(f"{GREEN}✓{END} Camera calibration loaded from {BOLD}{calib_path}{END}")
+        print(camera_matrix)
+    else:
+        print(f"{YELLOW}⚠ Warning: Camera calibration file not found: {calib_path}{END}")
+        print(f"{YELLOW}  3D world coordinates will not be accurate.{END}")
+    
     # Initialize models
     detector, pose_estimator, visualizer = initialize_models(config, workspace_dir, args)
     if detector is None or pose_estimator is None or visualizer is None:
         return
     
     # Define a function to process input sources
-    def process_input_source(input_source):
+    def process_input_source(input_source, camera_matrix=None):
         """Process different input sources (webcam, realsense, image, video).
         
         Args:
             input_source: Input source specification
+            camera_matrix: Camera intrinsics matrix for 3D deprojection
         """
         print(f"\n{BLUE}➤ Processing input: {input_source if input_source else 'webcam'}{END}")
         
         # Handle camera inputs
         if not input_source or input_source == 'webcam':
             process_camera(args, detector, pose_estimator, visualizer, 
-                          is_realsense=False, process_frame_func=process_one_image)
+                          is_realsense=False, process_frame_func=process_one_image,
+                          camera_matrix=camera_matrix)
             return
         
         if input_source == 'realsense':
@@ -363,7 +372,8 @@ def main():
             if realsense_objects[0] is not None:
                 process_camera(args, detector, pose_estimator, visualizer,
                               is_realsense=True, realsense_objects=realsense_objects,
-                              process_frame_func=process_one_image)
+                              process_frame_func=process_one_image,
+                              camera_matrix=camera_matrix)
             return
         
         # Handle file inputs (image/video)
@@ -386,14 +396,14 @@ def main():
         
         # Process based on input type
         if 'image' in input_type:
-            process_image(args, input_source, detector, pose_estimator, visualizer)
+            process_image(args, input_source, detector, pose_estimator, visualizer, camera_matrix)
         elif 'video' in input_type:
-            process_video(args, input_source, detector, pose_estimator, visualizer)
+            process_video(args, input_source, detector, pose_estimator, visualizer, camera_matrix)
         else:
             print(f"{RED}✗ Error: Unsupported input type: {input_type}{END}")
     
     # Process the input source
-    process_input_source(args.input)
+    process_input_source(args.input, camera_matrix=camera_matrix)
 
 
 if __name__ == '__main__':

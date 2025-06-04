@@ -63,12 +63,16 @@ python src/scripts/main.py --config path/to/config.yaml
 -   PyRealSense2 (optional) for RealSense camera support
 -   CUDA-enabled environment recommended for real-time performance
 
-## CLEAN Architecture Benefits
+## Camera calibration
 
-This implementation follows CLEAN architecture principles to provide:
+1. print the pattern without any distortions
+2. check if the printed squares are correct squares
+3. glue the pattern to a solid board
+4. fix the camera lens zoom, the calibration values change with the lens zoom changes
+5. record a video with the pattern moving in front of the camera
 
-1. **Separation of Concerns**: Each module has a single responsibility
-2. **Dependency Isolation**: Modules are independent of implementation details of other modules
-3. **Testability**: Components can be tested in isolation
-4. **Maintainability**: Changes to one module don't affect others
-5. **Extensibility**: New features can be added without major refactoring
+-   the pattern should be most of the time completely visible
+-   try to move the pattern to cover all parts of the camera view, pay attention to the corners
+-   the length of the video should be 1 or 2 minutes
+
+6. run the calibration.py to extract chessboard pattern corners from the video and perform camera calibration

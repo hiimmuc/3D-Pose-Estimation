@@ -11,17 +11,7 @@ import os
 from typing import Any, Dict, Optional
 
 import yaml
-
-# ANSI color codes
-RED = '\033[91m'
-GREEN = '\033[92m'
-YELLOW = '\033[93m'
-BLUE = '\033[94m'
-MAGENTA = '\033[95m'
-CYAN = '\033[96m'
-WHITE = '\033[97m'
-BOLD = '\033[1m'
-END = '\033[0m'
+from decoration import *
 
 
 def parse_arguments():
@@ -123,6 +113,11 @@ def parse_arguments():
                         type=int,
                         default=1,
                         help='Link thickness for visualization')
+    
+    # Calibration file
+    parser.add_argument('--calibration-file',
+                        default='calibration_data/calib_hd_pro_webcam_c920__046d_082d__1920.json',
+                        help='camera calibration file for 3D coordinate deprojection')
     
     return parser.parse_args()
 

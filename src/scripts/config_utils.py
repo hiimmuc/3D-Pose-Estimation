@@ -11,17 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
-
-# ANSI color codes for console output
-RED = '\033[91m'
-GREEN = '\033[92m'
-YELLOW = '\033[93m'
-BLUE = '\033[94m'
-MAGENTA = '\033[95m'
-CYAN = '\033[96m'
-WHITE = '\033[97m'
-BOLD = '\033[1m'
-END = '\033[0m'
+from decoration import *
 
 
 def load_config(config_path: str, workspace_dir: str) -> Optional[Dict]:
@@ -249,7 +239,7 @@ def print_model_info(config: Dict, det_config: str, pose_config: str, workspace_
     
     # Print header with decorative elements
     print(f"\n{BOLD}{'╔' + '═' * 80 + '╗'}{END}")
-    print(f"{BOLD}╠{'═' * 30}  MODEL INFORMATION  {'═' * 30}╣{END}")
+    print(f"{BOLD}╠{'═' * 30}  c  {'═' * 30}╣{END}")
     print(f"{BOLD}╠{'═' * 80}╣{END}")
     
     # Print detection model info
@@ -286,7 +276,7 @@ def print_model_info(detector, pose_estimator):
     """
     # Print header with decorative elements
     print(f"\n{BOLD}{'╔' + '═' * 80 + '╗'}{END}")
-    print(f"{BOLD}╠{'═' * 30}  MODEL INFORMATION  {'═' * 30}╣{END}")
+    print(f"{BOLD}╠{'═' * 30} MODEL INFORMATION {'═' * 31}╣{END}")
     print(f"{BOLD}╠{'═' * 80}╣{END}")
     
     # Print detection model info

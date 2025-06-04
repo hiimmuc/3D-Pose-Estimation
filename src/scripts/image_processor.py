@@ -6,6 +6,7 @@ This module handles all image processing operations needed for pose estimation,
 including detection, pose estimation, and visualization of results.
 """
 
+import json
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
@@ -13,26 +14,17 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import mmcv
 import numpy as np
+from decoration import *
 from mmdet.apis import inference_detector
 
 from mmpose.apis import inference_topdown
 from mmpose.evaluation.functional import nms
 from mmpose.structures import merge_data_samples, split_instances
 
-# ANSI color codes
-RED = '\033[91m'
-GREEN = '\033[92m'
-YELLOW = '\033[93m'
-BLUE = '\033[94m'
-MAGENTA = '\033[95m'
-CYAN = '\033[96m'
-WHITE = '\033[97m'
-BOLD = '\033[1m'
-END = '\033[0m'
-
 
 def process_one_image(args, img, detector, pose_estimator, visualizer=None,
-                      depth_img=None, depth_scale=None, show_interval=0):
+                      depth_img=None, depth_scale=None, show_interval=0,
+                      camera_matrix=None):
     """Process one image frame with enhanced visualization and 3D coordinates.
     
     Args:
@@ -44,6 +36,7 @@ def process_one_image(args, img, detector, pose_estimator, visualizer=None,
         depth_img: Depth image as numpy array (optional for 3D coordinates)
         depth_scale: Depth scale factor (optional)
         show_interval: Sleep time between frames visualization (optional)
+        camera_matrix: Camera intrinsics matrix for 3D deprojection
         
     Returns:
         Tuple: (img_vis, pred_instances) - Visualized image and prediction instances
@@ -73,9 +66,9 @@ def process_one_image(args, img, detector, pose_estimator, visualizer=None,
     # Get the pred_instances for later processing
     pred_instances = data_samples.get('pred_instances', None)
     
-    # Calculate 3D coordinates if depth information is available
-    if pred_instances is not None and depth_img is not None and depth_scale is not None:
-        calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale)
+    # Calculate 3D coordinates
+    if pred_instances is not None:
+        calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale, camera_matrix)
     
     # Convert image if needed
     if isinstance(img, str):
@@ -110,7 +103,7 @@ def process_one_image(args, img, detector, pose_estimator, visualizer=None,
         # Calculate and display FPS and timestamp
         process_time = time.time() - start_time
         fps = 1.0 / process_time if process_time > 0 else 0
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now().strftime("%H:%M:%S")
         
         # Draw performance information
         draw_performance_info(img_vis, fps, timestamp)
@@ -120,7 +113,7 @@ def process_one_image(args, img, detector, pose_estimator, visualizer=None,
     return img_vis, pred_instances
 
 
-def calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale):
+def calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale, camera_matrix=None):
     """Calculate 3D coordinates for keypoints using depth information.
     
     Args:
@@ -128,6 +121,7 @@ def calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale):
         pred_instances: Prediction instances
         depth_img: Depth image
         depth_scale: Depth scale
+        camera_matrix: Camera intrinsics matrix for 3D deprojection
         
     Returns:
         None (modifies pred_instances in-place)
@@ -136,8 +130,14 @@ def calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale):
     keypoints = pred_instances.keypoints
     keypoint_scores = pred_instances.keypoint_scores
     
-    # Initialize 3D keypoints
+    # Initialize 3D keypoints (camera coordinates)
     keypoints_3d = np.zeros((keypoints.shape[0], keypoints.shape[1], 3))
+    
+    # Initialize 3D keypoints (world coordinates after deprojection)
+    keypoints_3d_world = np.zeros((keypoints.shape[0], keypoints.shape[1], 3))
+    
+    #* Initialize 3D keypoints (attached to reference keypoint index)
+    keypoints_3d_transformed = np.zeros((keypoints.shape[0], keypoints.shape[1], 3))
     
     # For each person and each keypoint
     for person_idx, (person_keypoints, person_scores) in enumerate(zip(keypoints, keypoint_scores)):
@@ -145,23 +145,88 @@ def calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale):
             if score > args.kpt_thr:
                 x, y = int(kpt[0]), int(kpt[1])
                 
-                # Ensure point is within frame bounds
-                if (0 <= x < depth_img.shape[1] and 
-                    0 <= y < depth_img.shape[0]):
-                    
-                    # Get depth at keypoint location (in meters)
-                    depth_value = depth_img[y, x] * depth_scale
-                    
-                    # Store 3D coordinates (x, y, depth)
-                    keypoints_3d[person_idx, kpt_idx] = [x, y, depth_value]
-                else:
-                    keypoints_3d[person_idx, kpt_idx] = [x, y, 0]
+                # Get depth value if depth image is available
+                depth_value = np.nan
+                if depth_img is not None and depth_scale is not None:
+                    if (0 <= x < depth_img.shape[1] and 0 <= y < depth_img.shape[0]):
+                        depth_value = depth_img[y, x] * depth_scale
+                
+                # Store 3D coordinates (x, y, depth)
+                keypoints_3d[person_idx, kpt_idx] = [x, y, depth_value]
+                
+                # Calculate world coordinates if camera matrix is available
+                if camera_matrix is not None:
+                    # Use unit depth if depth is not available
+                    actual_depth = 1.0 if np.isnan(depth_value) else depth_value
+                    point_3d = camera_deprojection(
+                        np.array([[x], [y], [actual_depth]], dtype=np.float32),
+                        camera_matrix
+                    )
+                    # Store world coordinates
+                    keypoints_3d_world[person_idx, kpt_idx] = [
+                        point_3d[0, 0], point_3d[1, 0], point_3d[2, 0]
+                    ]
             else:
-                keypoints_3d[person_idx, kpt_idx] = [0, 0, 0]
+                keypoints_3d[person_idx, kpt_idx] = [x, y, np.nan]
+                keypoints_3d_world[person_idx, kpt_idx] = [np.nan, np.nan, np.nan]
     
     # Add 3D keypoints to pred_instances
     pred_instances.keypoints_3d = keypoints_3d
+    pred_instances.keypoints_3d_world = keypoints_3d_world
+    
+    #* not implemented yet
+    # Transform coordinates to be attached to a specific keypoint (e.g., nose)
+    keypoint_idx = 0  # Index of the keypoint to attach coordinates to (e.g., nose)
+    # keypoints_3d_transformed = coordinates_transformation(keypoints_3d, keypoint_idx)
+    pred_instances.keypoints_3d_transformed = keypoints_3d_transformed
+    
+def camera_deprojection(keypoints_3d, camera_matrix):
+    """Deproject 3D keypoints from camera coordinates to world coordinates.
+    
+    Args:
+        keypoints_3d: 3D keypoints in camera coordinates (numpy array)
+        camera_matrix: Camera intrinsics matrix (numpy array)
+        
+    Returns:
+        Deprojected 3D keypoints in world coordinates (numpy array)
+    """
+    if camera_matrix is None:
+        return keypoints_3d  # Return as is if no camera matrix provided
+    # Invert the camera matrix
+    inv_camera_matrix = np.linalg.inv(camera_matrix)
+    
+    # Deproject each keypoint
+    keypoints_world = np.dot(inv_camera_matrix, keypoints_3d)
+    
+    return keypoints_world
 
+def coordinates_transformation(keypoints_3d, keypoint_idx):
+    """Transform 3D keypoints from camera coordinates to coordinates attached to specific keypoint.
+    
+    Args:
+        keypoints_3d: 3D keypoints in camera coordinates (numpy array)
+        keypoint_idx: Index of the keypoint to attach coordinates to (int)
+        
+    Returns:
+        Transformed 3D keypoints in coordinates attached to the specified keypoint (numpy array)
+    """
+    # Make a copy to avoid modifying the original array
+    transformed_keypoints = np.copy(keypoints_3d)
+    
+    # Transform coordinates for each person
+    for person_idx in range(keypoints_3d.shape[0]):
+        # Get the reference keypoint (new origin)
+        reference_point = keypoints_3d[person_idx, keypoint_idx]
+        
+        # Skip if reference point has NaN values
+        if np.any(np.isnan(reference_point)):
+            continue
+            
+        # Subtract the reference point from all keypoints for this person
+        # This makes the reference point the new origin (0,0,0)
+        transformed_keypoints[person_idx] -= reference_point
+    
+    return transformed_keypoints
 
 def draw_keypoint_annotations(img_vis, pred_instances, args):
     """Draw keypoint annotations (3D coordinates or indices) on the image.
@@ -187,45 +252,71 @@ def draw_keypoint_annotations(img_vis, pred_instances, args):
     keypoints = pred_instances.keypoints
     keypoint_scores = pred_instances.keypoint_scores
     keypoints_3d = getattr(pred_instances, 'keypoints_3d', None)
+    keypoints_3d_world = getattr(pred_instances, 'keypoints_3d_world', None)
     
     # Draw 3D coordinates if available
     if keypoints_3d is not None:
         # For each person and keypoint
         for person_idx, (person_keypoints, person_scores, person_keypoints_3d) in enumerate(
                 zip(keypoints, keypoint_scores, keypoints_3d)):
+            
+            # Get world coordinates if available
+            person_world_coords = None
+            if keypoints_3d_world is not None:
+                person_world_coords = keypoints_3d_world[person_idx]
+            
             for kpt_idx, (kpt, score, kpt_3d) in enumerate(
                     zip(person_keypoints, person_scores, person_keypoints_3d)):
                 if score > kpt_thr:
                     x, y = int(kpt[0]), int(kpt[1])
                     depth = kpt_3d[2]
                     
-                    # Format text with 3D coordinates
-                    text = f"{kpt_idx}: ({x},{y},{depth:.3f}m)"
+                    # Get world coordinates if available
+                    world_x, world_y, world_z = 0, 0, 0
+                    if person_world_coords is not None:
+                        world_x, world_y, world_z = person_world_coords[kpt_idx]
                     
-                    # Calculate text background for better readability
+                    # Format text with pixel and 3D coordinates
+                    text_pixel = f"{kpt_idx}: u={x}, v={y}"
+                    text_world = f"X:{world_x:.3f},Y:{world_y:.3f},Z:{world_z:.3f}m)"
                     
                     # Calculate text size and position
-                    (text_width, text_height), _ = cv2.getTextSize(
-                        text, font, text_scale, text_thickness)
+                    (text_pixel_width, text_pixel_height), _ = cv2.getTextSize(
+                        text_pixel, font, text_scale, text_thickness)
+
+                    (text_world_width, _), _ = cv2.getTextSize(
+                        text_world, font, text_scale, text_thickness)
+                    
+                    # Calculate the maximum width needed
+                    max_width = max(text_pixel_width, text_world_width)
+                    total_height = text_pixel_height * 3 + 4  # 3 lines of text plus padding
                     
                     # Draw semi-transparent background
-                    cv2.rectangle(
-                        img_vis,
-                        (x, y - text_height - 2),
-                        (x + text_width, y),
-                        (0, 0, 0), -1
-                    )
+                    # cv2.rectangle(
+                    #     img_vis,
+                    #     (x, y - total_height - 2),
+                    #     (x + max_width, y),
+                    #     (0, 0, 0), -1
+                    # )
                     
                     # Apply alpha blending for transparency
                     alpha = 0.5
-                    roi = img_vis[y - text_height - 2:y, x:x + text_width]
+                    roi = img_vis[y - total_height - 2:y, x:x + max_width]
                     if roi.size > 0:  # Check if ROI is valid
                         cv2.addWeighted(roi, alpha, roi, 1 - alpha, 0, roi)
                     
-                    # Draw text
+                    # Draw text lines
+                    # First line: pixel coordinates (white)
                     cv2.putText(
-                        img_vis, text, (x, y - 2),
+                        img_vis, text_pixel, (x, y - total_height + text_pixel_height),
                         font, text_scale, (255, 255, 255), text_thickness
+                    )
+                    
+                    # Second line: camera coordinates (green)
+      
+                    cv2.putText(
+                        img_vis, text_world, (x, y - 2),
+                        font, text_scale, (0, 255, 0), text_thickness
                     )
     else:
         # Draw keypoints without depth information (2D only)
@@ -301,3 +392,30 @@ def draw_performance_info(img_vis, fps, timestamp):
         img_vis, f"Time: {timestamp}", 
         (130, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
     )
+
+
+def load_camera_intrinsics(calib_file_path):
+    """Load camera intrinsics matrix from calibration file.
+    
+    Args:
+        calib_file_path: Path to the calibration JSON file
+        
+    Returns:
+        Camera intrinsics matrix as numpy array
+    """
+    try:
+        with open(calib_file_path, 'r') as f:
+            calib_data = json.load(f)
+            
+        # Extract camera matrix from calibration data
+        camera_matrix = np.array(calib_data['camera_matrix'], dtype=np.float32)
+        print(success(f"Loaded camera intrinsics from {calib_file_path}"))
+        return camera_matrix
+    except Exception as e:
+        print(error(f"Error loading camera intrinsics: {str(e)}"))
+        # Return a default matrix as fallback
+        return np.array([
+            [1000.0, 0.0, 500.0],
+            [0.0, 1000.0, 500.0],
+            [0.0, 0.0, 1.0]
+        ], dtype=np.float32)
