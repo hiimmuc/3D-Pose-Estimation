@@ -5,10 +5,16 @@ This project provides a clean and structured implementation of pose estimation f
 ## Features
 
 -   Image, video, webcam, and RealSense D435i camera support
--   3D coordinate display for each joint (with depth information when available)
+-   Advanced 3D visualization capabilities:
+    -   2D pixel coordinates (white)
+    -   3D camera coordinates (green)
+    -   3D world coordinates (cyan)
+    -   Coordinate transformation relative to any keypoint (development...)
 -   Both CPU and GPU support
 -   FPS and timestamp display
--   Customizable visualization
+-   Camera calibration support
+-   Customizable visualization with color-coded information
+-   Robust handling of missing depth data
 
 ## Directory Structure
 
@@ -49,8 +55,8 @@ This project provides a clean and structured implementation of pose estimation f
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your_username/pose-estimation-project.git
-cd pose-estimation-project
+git clone https://github.com/hiimmuc/3D-Pose-Estimation.git
+cd 3D-Pose-Estimation
 ```
 
 2. Download the model checkpoints:
@@ -65,22 +71,25 @@ cd pose-estimation-project
 
 ```bash
 # Process an image:
-./src/scripts/run_pose_estimation.sh --input /path/to/image.jpg
+ python ./src/scripts/main.py--input /path/to/image.jpg
 
 # Process a video:
-./src/scripts/run_pose_estimation.sh --input /path/to/video.mp4
+ python ./src/scripts/main.py--input /path/to/video.mp4
 
 # Use webcam:
-./src/scripts/run_pose_estimation.sh --webcam
+ python ./src/scripts/main.py --webcam
 
 # Use RealSense camera:
-./src/scripts/run_pose_estimation.sh --realsense
+ python ./src/scripts/main.py--realsense
+
+# Transform coordinates relative to a specific keypoint:
+ python ./src/scripts/main.py --input /path/to/video.mp4 --reference-keypoint 0
 ```
 
 #### Using the Python script directly:
 
 ```bash
-python src/scripts/pose_estimation.py --config src/config.yaml --input /path/to/image_or_video.jpg
+python ./src/scripts/main.py --config src/config.yaml --input /path/to/image_or_video.jpg --calibration-file /path/to/calibration-file
 ```
 
 ### Configuration
@@ -89,16 +98,30 @@ You can customize the behavior by editing the `src/config.yaml` file. The config
 
 -   Detection model settings
 -   Pose estimation model settings
--   Visualization options
+-   Visualization options (including color schemes)
 -   Input/Output settings
--   Camera settings
+-   Camera settings and calibration parameters
 
 ## Example Output
 
-When running the script, you will see the pose estimation results with 3D coordinates for each keypoint.
+When running the script, you will see the pose estimation results with multiple coordinate representations for each keypoint:
 
--   For RGB images/videos without depth information, the Z coordinate will be 0.
--   For RealSense camera input, actual depth values will be shown for each keypoint.
+-   2D pixel coordinates (u, v) showing the position in the image
+-   3D camera coordinates (X, Y, Z) showing the position relative to the camera
+-   3D world coordinates showing the position in the global reference frame
+-   Optional transformed coordinates relative to a specified keypoint
+
+The visualization uses color coding to distinguish different types of information:
+
+-   White text for 2D pixel coordinates
+-   Green text for camera coordinates
+-   Yellow text for world coordinates
+
+For depth information:
+
+-   RGB images/videos without depth: Z coordinate will be NaN
+-   RealSense camera input: actual depth values in meters
+-   Transformed coordinates: distances relative to the reference keypoint
 
 ## License
 
