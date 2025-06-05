@@ -7,7 +7,9 @@ initialization, frame processing, and video capture. It provides a clean interfa
 for the main application to access camera data.
 """
 
+import logging
 import os
+import time
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -15,6 +17,9 @@ import cv2
 import mmengine
 import numpy as np
 from decoration import *
+from mmengine.logging import print_log
+
+from mmpose.structures import split_instances
 
 
 def init_realsense():
@@ -83,15 +88,7 @@ def process_camera(args, detector, pose_estimator, visualizer,
     Returns:
         None
     """
-    import logging
-    import time
 
-    import cv2
-    import mmengine
-    import numpy as np
-    from mmengine.logging import print_log
-
-    from mmpose.structures import split_instances
 
     # ANSI color codes for status messages
     camera_type = "RealSense" if is_realsense else "Webcam"
@@ -112,7 +109,13 @@ def process_camera(args, detector, pose_estimator, visualizer,
             print(f"{BLUE}└─{'─' * 50}┘{END}")
             return
         
-        pipeline, _, depth_scale, _, _, align = realsense_objects
+        pipeline, _, depth_scale, _, color_intrinsics, align = realsense_objects
+        # NOTE: get camera matrix from color intrinsics
+        camera_matrix = np.array([
+            [color_intrinsics.fx, 0, color_intrinsics.ppx],
+            [0, color_intrinsics.fy, color_intrinsics.ppy],
+            [0, 0, 1]
+        ], dtype=np.float32)
         print(f"{BLUE}│{END} {YELLOW}Processing RealSense camera input...{END}")
         
     else:
@@ -122,6 +125,9 @@ def process_camera(args, detector, pose_estimator, visualizer,
             print(f"{BLUE}│{END} {RED}✗ Error: Could not open webcam{END}")
             print(f"{BLUE}└─{'─' * 50}┘{END}")
             return
+        
+        # NOTE: get camera matrix from webcam properties
+        camera_matrix = camera_matrix
         
         print(f"{BLUE}│{END} {GREEN}✓ Webcam opened successfully{END}")
     

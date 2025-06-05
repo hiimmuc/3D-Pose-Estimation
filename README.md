@@ -1,54 +1,98 @@
 # Pose Estimation Project
 
-This project provides a clean and structured implementation of pose estimation for both images and videos, based on MMPose and MMDetection frameworks. It supports regular RGB cameras, webcams, and RealSense D435i depth cameras.
+This project provides a clean architecture implementation for 2D/3D pose estimation. It supports processing images, videos, webcam feeds, and Intel RealSense D435i depth cameras using MMPose and MMDetection frameworks.
 
 ## Features
 
--   Image, video, webcam, and RealSense D435i camera support
--   Advanced 3D visualization capabilities:
+-   **CLEAN Architecture** for maintainable, testable, and flexible codebase
+-   **Multiple input sources** - images, videos, webcams, and RealSense cameras
+-   **3D visualization capabilities**:
     -   2D pixel coordinates (white)
     -   3D camera coordinates (green)
     -   3D world coordinates (cyan)
-    -   Coordinate transformation relative to any keypoint (development...)
--   Both CPU and GPU support
--   FPS and timestamp display
--   Camera calibration support
--   Customizable visualization with color-coded information
--   Robust handling of missing depth data
+-   **Hardware flexibility** - CPU and GPU support
+-   **Real-time performance** with FPS display
+-   **Camera calibration** for accurate 3D pose reconstruction
+-   **Customizable visualization** with color-coded information
+-   **Robust depth processing** with fallback for missing depth data
 
 ## Directory Structure
 
 ```
-├── src/
-│   ├── config.yaml             # Main configuration file
-│   ├── pose-estimation/        # Pose estimation related files
-│   │   ├── configs/            # Pose estimation model configs
-│   │   ├── projects/           # Additional pose projects
-│   │   └── model-index.yml     # Index to model checkpoints
-│   ├── detection/              # Object detection related files
-│   │   ├── configs/            # Detection model configs
-│   │   ├── projects/           # Additional detection projects
-│   │   └── model-index.yml     # Index to model checkpoints
-│   └── scripts/                # Python and shell scripts
-│       ├── download_checkpoints.sh    # Script to download model weights
-│       ├── pose_estimation.py         # Main pose estimation script
-│       └── run_pose_estimation.sh     # Helper script to run pose estimation
-├── checkpoints/                # Directory to store model checkpoints
-│   ├── detection/              # Object detection model weights
-│   └── pose-estimation/        # Pose estimation model weights
+├── run_pose_estimation.py      # Main entry point (simplified launcher)
+├── setup.sh                    # Setup script to install dependencies
+├── src/                        # Source code with CLEAN architecture
+│   ├── application/            # Application layer (use cases)
+│   │   └── use_cases/          # Business logic use cases
+│   ├── domain/                 # Domain layer (entities, interfaces)
+│   │   ├── entities/           # Core business entities
+│   │   └── interfaces/         # Interfaces/ports for adapters
+│   ├── interfaces/             # Interfaces layer (adapters, presenters)
+│   │   ├── adapters/           # Adapters for external systems
+│   │   └── presenters/         # Presenters for output formatting
+│   ├── frameworks/             # Frameworks layer (utilities, drivers)
+│   │   └── utils/              # Utility functions
+│   ├── config.yaml             # Configuration file
+│   └── main.py                 # Original main entry point
+├── checkpoints/                # Directory for model checkpoints
+│   ├── detection/              # Object detection models
+│   └── pose-estimation/        # Pose estimation models
+├── examples/                   # Example input files
+│   ├── sample_image.jpg        # Sample test image
+│   └── sample_video.mp4        # Sample test video
+├── calibration_data/           # Camera calibration files
+│   └── calib_hd_pro_webcam_c920__046d_082d__1920.json # Sample calibration
 └── output/                     # Output directory for results
 ```
 
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
 -   Python 3.6+
--   PyTorch
--   MMPose
--   MMDetection
--   OpenCV
--   pyrealsense2 (for RealSense camera support)
+-   CUDA-capable GPU (recommended) or CPU
+-   Intel RealSense SDK (optional, for RealSense cameras)
+
+### Installation
+
+1. Clone the repository:
+
+    ```bash
+    git clone [repository-url]
+    cd [repository-directory]
+    ```
+
+2. Run the setup script to install dependencies:
+    ```bash
+    ./setup.sh
+    ```
+
+### Usage
+
+The system can be run with the simplified launcher script:
+
+```bash
+# Process an image
+./run_pose_estimation.py --image examples/sample_image.jpg --show
+
+# Process a video
+./run_pose_estimation.py --video examples/sample_video.mp4 --output-root output --show
+
+# Use webcam
+./run_pose_estimation.py --webcam --show
+
+# Use RealSense camera
+./run_pose_estimation.py --realsense --show
+
+# With camera calibration
+./run_pose_estimation.py --webcam --calibration calibration_data/calib_hd_pro_webcam_c920__046d_082d__1920.json --show
+```
+
+Use the `--help` option to see all available parameters:
+
+```bash
+./run_pose_estimation.py --help
+```
 
 ### Installation
 

@@ -35,7 +35,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from argument_parser import merge_configs, parse_arguments
 from camera_utils import has_realsense, init_realsense, process_camera
 from config_utils import ensure_models_exist, load_config, print_model_info
-from image_processor import load_camera_intrinsics, process_one_image
+from image_processor import load_camera_intrinsics, process_single_frame
 from save_utils import save_predictions, setup_output_paths
 
 # Filter out warnings
@@ -70,7 +70,7 @@ def process_image(args, img_path, detector, pose_estimator, visualizer, camera_m
             
         # Process image
         print(f"{BLUE}Processing image: {os.path.basename(img_path)}{END}")
-        img_vis, pred_instances = process_one_image(
+        img_vis, pred_instances = process_single_frame(
             args, img, detector, pose_estimator, visualizer, camera_matrix=camera_matrix
         )
         
@@ -175,7 +175,7 @@ def process_video(args, video_path, detector, pose_estimator, visualizer, camera
                     
                 # Process frame
                 start_time = time.time()
-                frame_vis, pred_instances = process_one_image(
+                frame_vis, pred_instances = process_single_frame(
                     args, frame, detector, pose_estimator, visualizer,
                     camera_matrix=camera_matrix
                 )
@@ -336,7 +336,6 @@ def main():
     if os.path.exists(calib_path):
         camera_matrix = load_camera_intrinsics(calib_path)
         print(f"{GREEN}✓{END} Camera calibration loaded from {BOLD}{calib_path}{END}")
-        print(camera_matrix)
     else:
         print(f"{YELLOW}⚠ Warning: Camera calibration file not found: {calib_path}{END}")
         print(f"{YELLOW}  3D world coordinates will not be accurate.{END}")
@@ -359,7 +358,7 @@ def main():
         # Handle camera inputs
         if not input_source or input_source == 'webcam':
             process_camera(args, detector, pose_estimator, visualizer, 
-                          is_realsense=False, process_frame_func=process_one_image,
+                          is_realsense=False, process_frame_func=process_single_frame,
                           camera_matrix=camera_matrix)
             return
         
@@ -372,7 +371,7 @@ def main():
             if realsense_objects[0] is not None:
                 process_camera(args, detector, pose_estimator, visualizer,
                               is_realsense=True, realsense_objects=realsense_objects,
-                              process_frame_func=process_one_image,
+                              process_frame_func=process_single_frame,
                               camera_matrix=camera_matrix)
             return
         

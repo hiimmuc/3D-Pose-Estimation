@@ -287,7 +287,7 @@ def print_model_info(detector, pose_estimator):
     print(f"{BOLD}║{END} {CYAN}Device:{END}             {GREEN}{str(next(detector.parameters()).device)}{END}")
     
     # Print pose model info
-    print(f"\n{BOLD}║{END} {MAGENTA}Pose Model:{END}        {BLUE}{pose_name}{END}")
+    print(f"{BOLD}║{END} {MAGENTA}Pose Model:{END}        {BLUE}{pose_name}{END}")
     print(f"{BOLD}║{END} {MAGENTA}Device:{END}             {GREEN}{str(next(pose_estimator.parameters()).device)}{END}")
     
     # Print keypoint information

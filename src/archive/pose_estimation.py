@@ -297,7 +297,7 @@ def print_model_info(config, det_config, pose_config, workspace_dir):
     print(f"{BOLD}{'╚' + '═' * 78 + '╝'}{END}\n")
 
 
-def process_one_image(args, img, detector, pose_estimator, visualizer=None, 
+def process_single_frame(args, img, detector, pose_estimator, visualizer=None, 
                       depth_img=None, depth_scale=None, show_interval=0):
     """Process one image frame with enhanced visualization and 3D coordinates."""
     start_time = time.time()
@@ -675,7 +675,7 @@ def process_camera(args, detector, pose_estimator, visualizer,
                 color_image = np.asanyarray(color_frame.get_data())
                 
                 # Process frame
-                img_vis, pred_instances = process_one_image(
+                img_vis, pred_instances = process_single_frame(
                     args, color_image, detector, pose_estimator, visualizer, 
                     depth_img=depth_image, depth_scale=depth_scale, 
                     show_interval=args.show_interval
@@ -688,7 +688,7 @@ def process_camera(args, detector, pose_estimator, visualizer,
                     break
                 
                 # Process frame (no depth for standard webcam)
-                img_vis, pred_instances = process_one_image(
+                img_vis, pred_instances = process_single_frame(
                     args, frame, detector, pose_estimator, visualizer, 
                     show_interval=args.show_interval
                 )
@@ -1000,7 +1000,7 @@ def main():
             print(f"{BLUE}➤ Processing image: {BOLD}{args.input}{END}")
             
             # Process the image
-            img_vis, pred_instances = process_one_image(
+            img_vis, pred_instances = process_single_frame(
                 args, args.input, detector, pose_estimator, visualizer
             )
             
@@ -1067,7 +1067,7 @@ def main():
                     print(f"\r{BLUE}Processing: {END}{progress_bar} {percent:.1f}% ({frame_idx}/{total_frames})", end="", flush=True)
                 
                 # Process frame
-                img_vis, pred_instances = process_one_image(
+                img_vis, pred_instances = process_single_frame(
                     args, frame, detector, pose_estimator, visualizer, 
                     show_interval=args.show_interval
                 )

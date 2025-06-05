@@ -9,7 +9,7 @@ including detection, pose estimation, and visualization of results.
 import json
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import mmcv
@@ -22,9 +22,9 @@ from mmpose.evaluation.functional import nms
 from mmpose.structures import merge_data_samples, split_instances
 
 
-def process_one_image(args, img, detector, pose_estimator, visualizer=None,
-                      depth_img=None, depth_scale=None, show_interval=0,
-                      camera_matrix=None):
+def process_single_frame(args, img, detector, pose_estimator, visualizer=None,
+                         depth_img=None, depth_scale=None, show_interval=0,
+                         camera_matrix=None):
     """Process one image frame with enhanced visualization and 3D coordinates.
     
     Args:
@@ -136,9 +136,6 @@ def calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale, camera_
     # Initialize 3D keypoints (world coordinates after deprojection)
     keypoints_3d_world = np.zeros((keypoints.shape[0], keypoints.shape[1], 3))
     
-    #* Initialize 3D keypoints (attached to reference keypoint index)
-    keypoints_3d_transformed = np.zeros((keypoints.shape[0], keypoints.shape[1], 3))
-    
     # For each person and each keypoint
     for person_idx, (person_keypoints, person_scores) in enumerate(zip(keypoints, keypoint_scores)):
         for kpt_idx, (kpt, score) in enumerate(zip(person_keypoints, person_scores)):
@@ -167,7 +164,7 @@ def calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale, camera_
                         point_3d[0, 0], point_3d[1, 0], point_3d[2, 0]
                     ]
             else:
-                keypoints_3d[person_idx, kpt_idx] = [x, y, np.nan]
+                keypoints_3d[person_idx, kpt_idx] = [np.nan, np.nan, np.nan]
                 keypoints_3d_world[person_idx, kpt_idx] = [np.nan, np.nan, np.nan]
     
     # Add 3D keypoints to pred_instances
@@ -176,9 +173,14 @@ def calculate_3d_keypoints(args, pred_instances, depth_img, depth_scale, camera_
     
     #* not implemented yet
     # Transform coordinates to be attached to a specific keypoint (e.g., nose)
-    keypoint_idx = 0  # Index of the keypoint to attach coordinates to (e.g., nose)
-    # keypoints_3d_transformed = coordinates_transformation(keypoints_3d, keypoint_idx)
-    pred_instances.keypoints_3d_transformed = keypoints_3d_transformed
+    # pred_instances.keypoints_3d_transformed = keypoints_3d_transformed
+    keypoints_3d_transformed = coordinates_transformation(
+        keypoints_3d_world, kpt_idx=0  # Assuming 0 is the index of the nose keypoint
+    )
+    if keypoints_3d_transformed.shape == keypoints_3d_world.shape:
+        pred_instances.keypoints_3d_transformed = keypoints_3d_transformed
+    else:
+        pred_instances.keypoints_3d_transformed = keypoints_3d_world
     
 def camera_deprojection(keypoints_3d, camera_matrix):
     """Deproject 3D keypoints from camera coordinates to world coordinates.
@@ -200,33 +202,52 @@ def camera_deprojection(keypoints_3d, camera_matrix):
     
     return keypoints_world
 
-def coordinates_transformation(keypoints_3d, keypoint_idx):
-    """Transform 3D keypoints from camera coordinates to coordinates attached to specific keypoint.
+def coordinates_transformation(list_keypoints_3d_world, kpt_idx):
+    """Given 3D keypoints (world), transform them to be attached to a specific key point, defined by kpt_idx. 
+    Transformation using Homogeneous matrix as per the mathematical formulation in the document.
     
     Args:
-        keypoints_3d: 3D keypoints in camera coordinates (numpy array)
-        keypoint_idx: Index of the keypoint to attach coordinates to (int)
+        list_keypoints_3d_world: 3D keypoints in world coordinates (numpy array of shape [N, 3])
+        kpt_idx: Index of the key point to attach coordinates to (e.g., nose)
         
     Returns:
-        Transformed 3D keypoints in coordinates attached to the specified keypoint (numpy array)
+        transformed_keypoints_3d: Transformed 3D keypoints in local frame (numpy array of shape [N, 3])
     """
-    # Make a copy to avoid modifying the original array
-    transformed_keypoints = np.copy(keypoints_3d)
     
-    # Transform coordinates for each person
-    for person_idx in range(keypoints_3d.shape[0]):
-        # Get the reference keypoint (new origin)
-        reference_point = keypoints_3d[person_idx, keypoint_idx]
-        
-        # Skip if reference point has NaN values
-        if np.any(np.isnan(reference_point)):
-            continue
-            
-        # Subtract the reference point from all keypoints for this person
-        # This makes the reference point the new origin (0,0,0)
-        transformed_keypoints[person_idx] -= reference_point
+    # Convert input to numpy array if not already
+    keypoints_world = np.array(list_keypoints_3d_world).reshape(-1, 3)  # Ensure shape is (N, 3)
     
-    return transformed_keypoints
+    
+    # Validate input shape
+    if keypoints_world.ndim != 2 or keypoints_world.shape[1] != 3:
+        raise ValueError("Input keypoints must have shape (N, 3)")
+    
+    # Get the reference keypoint (the one we're transforming to)
+    reference_point = keypoints_world[kpt_idx, :]  # [x, y, z] of reference keypoint
+    
+    # Create the transformation matrix T = [R | t]
+    #                                     [0 | 1]
+    # For coordinate frame transformation, we use:
+    # - R = I (identity matrix, no rotation - assuming same orientation)
+    # - t = -reference_point (translation to move reference point to origin)
+    
+    # Create 4x4 homogeneous transformation matrix
+    T = np.eye(4)
+    T[:3, 3] = -reference_point  # Set translation part
+    
+    # Convert keypoints to homogeneous coordinates (add column of ones)
+    N = keypoints_world.shape[0]
+    keypoints_homo = np.hstack([keypoints_world, np.ones((N, 1))])  # Shape: (N, 4)
+    
+    # Apply transformation: X_local = T * X_world
+    # We need to transpose for matrix multiplication: (4x4) * (4xN) = (4xN)
+    transformed_homo = T @ keypoints_homo.T  # Shape: (4, N)
+    
+    # Transpose back and extract 3D coordinates (remove homogeneous coordinate)
+    transformed_keypoints_3d = transformed_homo.T[:, :3]  # Shape: (N, 3)
+    
+    return np.expand_dims(transformed_keypoints_3d, axis=0)
+
 
 def draw_keypoint_annotations(img_vis, pred_instances, args):
     """Draw keypoint annotations (3D coordinates or indices) on the image.
@@ -243,7 +264,7 @@ def draw_keypoint_annotations(img_vis, pred_instances, args):
         return
     
     # Get configuration values or use defaults
-    text_scale = getattr(args, 'text_scale', 0.5)
+    text_scale = getattr(args, 'text_scale', 0.4)
     text_thickness = getattr(args, 'text_thickness', 1)
     font = getattr(args, 'font', cv2.FONT_HERSHEY_SIMPLEX)
     kpt_thr = getattr(args, 'kpt_thr', 0.3)
@@ -253,6 +274,8 @@ def draw_keypoint_annotations(img_vis, pred_instances, args):
     keypoint_scores = pred_instances.keypoint_scores
     keypoints_3d = getattr(pred_instances, 'keypoints_3d', None)
     keypoints_3d_world = getattr(pred_instances, 'keypoints_3d_world', None)
+    keypoints_3d_transformed = getattr(pred_instances, 'keypoints_3d_transformed', None)
+    
     
     # Draw 3D coordinates if available
     if keypoints_3d is not None:
@@ -265,6 +288,11 @@ def draw_keypoint_annotations(img_vis, pred_instances, args):
             if keypoints_3d_world is not None:
                 person_world_coords = keypoints_3d_world[person_idx]
             
+            kpt_body_coords = None
+            if keypoints_3d_transformed is not None:
+                kpt_body_coords = keypoints_3d_transformed[person_idx]
+                
+            
             for kpt_idx, (kpt, score, kpt_3d) in enumerate(
                     zip(person_keypoints, person_scores, person_keypoints_3d)):
                 if score > kpt_thr:
@@ -275,10 +303,15 @@ def draw_keypoint_annotations(img_vis, pred_instances, args):
                     world_x, world_y, world_z = 0, 0, 0
                     if person_world_coords is not None:
                         world_x, world_y, world_z = person_world_coords[kpt_idx]
+                        
+                    transformed_x, transformed_y, transformed_z = 0, 0, 0
+                    if kpt_body_coords is not None: 
+                        transformed_x, transformed_y, transformed_z = kpt_body_coords[kpt_idx]
                     
                     # Format text with pixel and 3D coordinates
-                    text_pixel = f"{kpt_idx}: u={x}, v={y}"
-                    text_world = f"X:{world_x:.3f},Y:{world_y:.3f},Z:{world_z:.3f}m)"
+                    text_pixel = f"P{kpt_idx} ({x}, {y})"
+                    text_world = f"[{world_x:.3f}, {world_y:.3f}, {world_z:.3f}]"
+                    text_transformed = f"[{transformed_x:.3f}, {transformed_y:.3f},{transformed_z:.3f}]"
                     
                     # Calculate text size and position
                     (text_pixel_width, text_pixel_height), _ = cv2.getTextSize(
@@ -287,8 +320,11 @@ def draw_keypoint_annotations(img_vis, pred_instances, args):
                     (text_world_width, _), _ = cv2.getTextSize(
                         text_world, font, text_scale, text_thickness)
                     
+                    (text_transformed_width, _), _ = cv2.getTextSize(
+                        text_transformed, font, text_scale, text_thickness)
+                    
                     # Calculate the maximum width needed
-                    max_width = max(text_pixel_width, text_world_width)
+                    max_width = max(text_pixel_width, text_world_width, text_transformed_width)
                     total_height = text_pixel_height * 3 + 4  # 3 lines of text plus padding
                     
                     # Draw semi-transparent background
@@ -318,6 +354,12 @@ def draw_keypoint_annotations(img_vis, pred_instances, args):
                         img_vis, text_world, (x, y - 2),
                         font, text_scale, (0, 255, 0), text_thickness
                     )
+                    
+                    # Third line: transformed coordinates (blue)
+                    cv2.putText(
+                        img_vis, text_transformed, (x, y + text_pixel_height),
+                        font, text_scale, (255, 0, 0), text_thickness
+                    ) 
     else:
         # Draw keypoints without depth information (2D only)
         for person_idx, (person_keypoints, person_scores) in enumerate(
