@@ -1,7 +1,7 @@
-# 3D Pose Estimation System 🧍‍♂️🔍
+# 3D Pose Estimation System 
 
 ![Badge-License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
-![Badge-Python](https://img.shields.io/badge/Python-3.6+-blue)
+![Badge-Python](https://img.shields.io/badge/Python-3.8+-blue)
 ![Badge-MMPose](https://img.shields.io/badge/Framework-MMPose-green)
 
 A state-of-the-art pose estimation system capable of advanced 3D coordinate visualization with support for multiple camera inputs including RealSense depth cameras.
@@ -194,6 +194,11 @@ For depth information:
 -   RGB images/videos without depth: Z coordinate will be NaN
 -   RealSense camera input: actual depth values in meters
 -   Transformed coordinates: distances relative to the reference keypoint
+
+Video demo
+<p>
+<video src="https://github.com/hiimmuc/3D-Pose-Estimation/blob/master/output/realsense_test.mp4"></video>
+</p>
 
 ## 📄 License
 
