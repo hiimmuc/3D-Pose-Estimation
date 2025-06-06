@@ -14,6 +14,7 @@ from pathlib import Path
 
 import cv2
 import mmcv
+import mmengine
 import numpy as np
 import torch
 from mmengine.logging import print_log
@@ -145,7 +146,7 @@ def process_video(args, video_path, detector, pose_estimator, visualizer, camera
         # Initialize video writer
         video_writer = None
         if args.output_root:
-            mmcv.mkdir_or_exist(args.output_root)
+            mmengine.mkdir_or_exist(args.output_root)
             output_file = os.path.join(args.output_root, f"{filename}_{timestamp}.mp4")
             
             # Initialize video writer
