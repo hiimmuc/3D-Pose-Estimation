@@ -27,45 +27,6 @@ A state-of-the-art pose estimation system capable of advanced 3D coordinate visu
 -   **🎨 Customizable UI** - Color-coded information and display options
 -   **💪 Robust Processing** - Intelligent fallbacks for missing depth data
 
-## 🏗️ Architecture
-
-This project is structured with modularity in mind and is being refactored to follow CLEAN architecture principles:
-
-<p align="center">
-  <table>
-    <tr>
-      <th>Layer</th>
-      <th>Responsibility</th>
-      <th>Current Implementation</th>
-      <th>Future Implementation</th>
-    </tr>
-    <tr>
-      <td>📊 Domain</td>
-      <td>Business entities and rules</td>
-      <td>Embedded in scripts</td>
-      <td>Keypoint, Pose, Frame entities</td>
-    </tr>
-    <tr>
-      <td>⚙️ Application</td>
-      <td>Use cases and business logic</td>
-      <td>main.py, image_processor.py</td>
-      <td>Process frames, Calculate 3D keypoints</td>
-    </tr>
-    <tr>
-      <td>🔌 Interfaces</td>
-      <td>Adapters and presenters</td>
-      <td>camera_utils.py</td>
-      <td>Camera adapters, Model adapters, Visualizers</td>
-    </tr>
-    <tr>
-      <td>🧰 Frameworks</td>
-      <td>External tools and utilities</td>
-      <td>config_utils.py, save_utils.py</td>
-      <td>Camera utils, File utils, Logging</td>
-    </tr>
-  </table>
-</p>
-
 ## 📁 Current Directory Structure
 
 ````
