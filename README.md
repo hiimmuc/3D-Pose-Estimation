@@ -196,9 +196,8 @@ For depth information:
 -   Transformed coordinates: distances relative to the reference keypoint
 
 Video demo
-<p>
-<video src="https://github.com/hiimmuc/3D-Pose-Estimation/blob/master/output/realsense_test.mp4"></video>
-</p>
+
+[![Watch the video](https://i.sstatic.net/Vp2cE.png)](https://github.com/hiimmuc/3D-Pose-Estimation/blob/master/output/realsense_test.mp4)
 
 ## 📄 License
 
